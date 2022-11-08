@@ -98,6 +98,8 @@
                           | get_consumer_error().
 
 -define(dead_since(TS, REASON), {dead_since, TS, REASON}).
+-define(NO_MSG_HDLR, undefined).
+
 -type connection() :: kpro:connection().
 -type dead_conn() :: ?dead_since(erlang:timestamp(), any()).
 -record(conn,
@@ -105,6 +107,8 @@
        , pid :: connection() | dead_conn()
        }).
 -type conn_state() :: #conn{}.
+-type(reason_code() :: 0..16#FF).
+-type(mfas() :: {module(), atom(), list()} | {function(), list()}).
 
 -type(msg_handler() :: #{puback := fun((_) -> any()) | mfas(),
                         publish := fun((emqx_types:message()) -> any()) | mfas(),
