@@ -409,6 +409,7 @@ terminate(Reason, State = #state{ client_id     = ClientId
                         , payload_conns = PayloadConns
                         , producers_sup = ProducersSup
                         , consumers_sup = ConsumersSup
+                        , msg_handler = Msg_handler
                         }) ->
   case brod_utils:is_normal_reason(Reason) of
     true ->
@@ -418,6 +419,8 @@ terminate(Reason, State = #state{ client_id     = ClientId
                         [?MODULE, self(), ClientId, Reason])
   end,
   %%SEND STATUS OF DIsconnected to parent pid
+  ?BROD_LOG_WARNING("~p [~p] ~p is terminating\nhandlers: ~p~n",
+                [?MODULE, self(), ClientId, Msg_handler])
   ok = eval_msg_handler(State, disconnected, Reason),
 
   %% stop producers and consumers first because they are monitoring connections
@@ -436,6 +439,8 @@ eval_msg_handler(#state{msg_handler = ?NO_MSG_HDLR,
     ok;
 eval_msg_handler(#state{msg_handler = Handler}, Kind, Msg) ->
     F = maps:get(Kind, Handler),
+      ?BROD_LOG_WARNING("~p [~p] ~p msg_handler\nfunction: ~p~n",
+                [?MODULE, self(), Kind, F])
     _ = apply_handler_function(F, Msg),
     ok.
 
