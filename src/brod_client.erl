@@ -118,8 +118,8 @@
         , producers_sup        :: ?undef | pid()
         , consumers_sup        :: ?undef | pid()
         , config               :: ?undef | config()
-        , workers_tab          :: ?undef | ets:tab(),
-        , msg_handler          :: ?undef | msg_handler(),
+        , workers_tab          :: ?undef | ets:tab()
+        , msg_handler          :: ?undef | msg_handler()
         }).
 
 -type state() :: #state{}.
