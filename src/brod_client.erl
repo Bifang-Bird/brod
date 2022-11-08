@@ -105,6 +105,11 @@
        , pid :: connection() | dead_conn()
        }).
 -type conn_state() :: #conn{}.
+
+-type(msg_handler() :: #{puback := fun((_) -> any()) | mfas(),
+                        publish := fun((emqx_types:message()) -> any()) | mfas(),
+                        disconnected := fun(({reason_code(), _Properties :: term()}) -> any()) | mfas()}).
+
 -record(state,
         { client_id            :: client_id()
         , bootstrap_endpoints  :: [endpoint()]
@@ -113,7 +118,8 @@
         , producers_sup        :: ?undef | pid()
         , consumers_sup        :: ?undef | pid()
         , config               :: ?undef | config()
-        , workers_tab          :: ?undef | ets:tab()
+        , workers_tab          :: ?undef | ets:tab(),
+        , msg_handler          :: ?undef | msg_handler(),
         }).
 
 -type state() :: #state{}.
@@ -286,6 +292,9 @@ init({BootstrapEndpoints, ClientId, Config}) ->
   Tab = ets:new(?ETS(ClientId),
                 [named_table, protected, {read_concurrency, true}]),
   self() ! init,
+  ?BROD_LOG_WARNING("~p [~p] ~p is config\nis: ~p~n",
+                  [?MODULE, self(), ClientId, Config,]),
+
   {ok, #state{ client_id           = ClientId
              , bootstrap_endpoints = BootstrapEndpoints
              , config              = Config
@@ -296,11 +305,15 @@ init({BootstrapEndpoints, ClientId, Config}) ->
 handle_info(init, State0) ->
   Endpoints = State0#state.bootstrap_endpoints,
   State1 = ensure_metadata_connection(State0),
+  Config = State0#state.config,
+  Msg_handler = config(handlers,Config,?undef),
+
   {ok, ProducersSupPid} = brod_producers_sup:start_link(),
   {ok, ConsumersSupPid} = brod_consumers_sup:start_link(),
   State = State1#state{ bootstrap_endpoints = Endpoints
                       , producers_sup       = ProducersSupPid
                       , consumers_sup       = ConsumersSupPid
+                      , msg_handler = Msg_handler
                       },
   {noreply, State};
 handle_info({'EXIT', Pid, Reason}, #state{ client_id     = ClientId
@@ -386,19 +399,23 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %% @private
-terminate(Reason, #state{ client_id     = ClientId
+terminate(Reason, State = #state{ client_id     = ClientId
                         , meta_conn     = MetaConn
                         , payload_conns = PayloadConns
                         , producers_sup = ProducersSup
                         , consumers_sup = ConsumersSup
+                        , msg_handler = Msg_handler
                         }) ->
   case brod_utils:is_normal_reason(Reason) of
     true ->
       ok;
     false ->
       ?BROD_LOG_WARNING("~p [~p] ~p is terminating\nreason: ~p~n",
-                        [?MODULE, self(), ClientId, Reason])
+                        [?MODULE, self(), ClientId, Reason,])
   end,
+  %%SEND STATUS OF DIsconnected to parent pid
+  ok = eval_msg_handler(State, disconnected, Reason),
+
   %% stop producers and consumers first because they are monitoring connections
   shutdown_pid(ProducersSup),
   shutdown_pid(ConsumersSup),
@@ -406,6 +423,30 @@ terminate(Reason, #state{ client_id     = ClientId
   lists:foreach(Shutdown, PayloadConns),
   shutdown_pid(MetaConn).
 
+eval_msg_handler(#state{msg_handler = ?NO_MSG_HDLR},
+                 disconnected, _OtherReason) ->
+    ok;
+eval_msg_handler(#state{msg_handler = ?NO_MSG_HDLR,
+                        owner = Owner}, Kind, Msg) ->
+    Owner ! {Kind, Msg},
+    ok;
+eval_msg_handler(#state{msg_handler = Handler}, Kind, Msg) ->
+    F = maps:get(Kind, Handler),
+    _ = apply_handler_function(F, Msg),
+    ok.
+
+apply_handler_function(F, Msg)
+  when is_function(F) ->
+    erlang:apply(F, [Msg]);
+apply_handler_function({F, A}, Msg)
+  when is_function(F),
+       is_list(A) ->
+    erlang:apply(F, [Msg] ++ A);
+apply_handler_function({M, F, A}, Msg)
+  when is_atom(M),
+       is_atom(F),
+       is_list(A) ->
+    erlang:apply(M, F, [Msg] ++ A).
 %%%_* Internal Functions =======================================================
 
 shutdown_pid(Pid) when is_pid(Pid) ->
