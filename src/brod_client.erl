@@ -327,15 +327,20 @@ handle_info({'EXIT', Pid, Reason}, #state{ client_id     = ClientId
   ?BROD_LOG_ERROR("client ~p producers supervisor down~nReason: ~p",
                   [ClientId, Pid, Reason]),
   {stop, {producers_sup_down, Reason}, State};
+
 handle_info({'EXIT', Pid, Reason}, #state{ client_id     = ClientId
                                          , consumers_sup = Pid
                                          } = State) ->
   ?BROD_LOG_ERROR("client ~p consumers supervisor down~nReason: ~p",
                   [ClientId, Pid, Reason]),
   {stop, {consumers_sup_down, Reason}, State};
+
+
 handle_info({'EXIT', Pid, Reason}, State) ->
   NewState = handle_connection_down(State, Pid, Reason),
+  ok = eval_msg_handler(State, disconnected, Reason),
   {noreply, NewState};
+
 handle_info(Info, State) ->
   ?BROD_LOG_WARNING("~p [~p] ~p got unexpected info: ~p",
                     [?MODULE, self(), State#state.client_id, Info]),
@@ -757,8 +762,7 @@ handle_connection_down(#state{ payload_conns = Conns
     false ->
       %% stale EXIT message
       State
-  end,
-  ok = eval_msg_handler(State, disconnected, Reason).
+  end.
 
 mark_dead(Reason) -> ?dead_since(os:timestamp(), Reason).
 
