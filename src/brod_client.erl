@@ -338,8 +338,8 @@ handle_info({'EXIT', Pid, Reason}, #state{ client_id     = ClientId
 
 handle_info({'EXIT', Pid, Reason}, State) ->
   NewState = handle_connection_down(State, Pid, Reason),
-  ok = eval_msg_handler(State, disconnected, Reason),
-  {noreply, NewState};
+  %%{noreply, NewState};
+  {stop, normal, ok, State};
 
 handle_info(Info, State) ->
   ?BROD_LOG_WARNING("~p [~p] ~p got unexpected info: ~p",
@@ -424,8 +424,8 @@ terminate(Reason, State = #state{ client_id     = ClientId
                         [?MODULE, self(), ClientId, Reason])
   end,
   %%SEND STATUS OF DIsconnected to parent pid
-  ?BROD_LOG_WARNING("~p [~p] ~p is terminating\nhandlers: ~p~n",
-                [?MODULE, self(), ClientId, Msg_handler]),
+  ?BROD_LOG_WARNING("~p [~p] ~p is terminating\nhandlers: ~p~n  \nproducersSup: ~p \nproducersSup: ~p \nPayloadConns: ~p \nMetaConn: ~p",
+                [?MODULE, self(), ClientId, Msg_handler,ProducersSup,ConsumersSup,PayloadConns,MetaConn]),
   ok = eval_msg_handler(State, disconnected, Reason),
 
   %% stop producers and consumers first because they are monitoring connections
