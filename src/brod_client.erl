@@ -293,7 +293,7 @@ init({BootstrapEndpoints, ClientId, Config}) ->
                 [named_table, protected, {read_concurrency, true}]),
   self() ! init,
   ?BROD_LOG_WARNING("~p [~p] ~p is config\nis: ~p~n",
-                  [?MODULE, self(), ClientId, Config,]),
+                  [?MODULE, self(), ClientId, Config]),
 
   {ok, #state{ client_id           = ClientId
              , bootstrap_endpoints = BootstrapEndpoints
@@ -411,7 +411,7 @@ terminate(Reason, State = #state{ client_id     = ClientId
       ok;
     false ->
       ?BROD_LOG_WARNING("~p [~p] ~p is terminating\nreason: ~p~n",
-                        [?MODULE, self(), ClientId, Reason,])
+                        [?MODULE, self(), ClientId, Reason])
   end,
   %%SEND STATUS OF DIsconnected to parent pid
   ok = eval_msg_handler(State, disconnected, Reason),
