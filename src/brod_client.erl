@@ -757,7 +757,8 @@ handle_connection_down(#state{ payload_conns = Conns
     false ->
       %% stale EXIT message
       State
-  end.
+  end,
+  ok = eval_msg_handler(State, disconnected, Reason).
 
 mark_dead(Reason) -> ?dead_since(os:timestamp(), Reason).
 
