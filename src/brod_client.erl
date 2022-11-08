@@ -124,6 +124,7 @@
         , config               :: ?undef | config()
         , workers_tab          :: ?undef | ets:tab()
         , msg_handler          :: ?undef | msg_handler()
+        , owner                :: ?undef | pid()
         }).
 
 -type state() :: #state{}.
@@ -408,7 +409,6 @@ terminate(Reason, State = #state{ client_id     = ClientId
                         , payload_conns = PayloadConns
                         , producers_sup = ProducersSup
                         , consumers_sup = ConsumersSup
-                        , msg_handler = Msg_handler
                         }) ->
   case brod_utils:is_normal_reason(Reason) of
     true ->
