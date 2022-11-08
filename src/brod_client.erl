@@ -440,7 +440,7 @@ eval_msg_handler(#state{msg_handler = ?NO_MSG_HDLR,
 eval_msg_handler(#state{msg_handler = Handler}, Kind, Msg) ->
     F = maps:get(Kind, Handler),
       ?BROD_LOG_WARNING("~p [~p] ~p msg_handler\nfunction: ~p~n",
-                [?MODULE, self(), Kind, F])
+                [?MODULE, self(), Kind, F]),
     _ = apply_handler_function(F, Msg),
     ok.
 
