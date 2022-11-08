@@ -420,7 +420,7 @@ terminate(Reason, State = #state{ client_id     = ClientId
   end,
   %%SEND STATUS OF DIsconnected to parent pid
   ?BROD_LOG_WARNING("~p [~p] ~p is terminating\nhandlers: ~p~n",
-                [?MODULE, self(), ClientId, Msg_handler])
+                [?MODULE, self(), ClientId, Msg_handler]),
   ok = eval_msg_handler(State, disconnected, Reason),
 
   %% stop producers and consumers first because they are monitoring connections
