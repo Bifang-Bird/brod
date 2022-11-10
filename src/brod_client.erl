@@ -339,7 +339,7 @@ handle_info({'EXIT', Pid, Reason}, #state{ client_id     = ClientId
 handle_info({'EXIT', Pid, Reason}, State) ->
   NewState = handle_connection_down(State, Pid, Reason),
   %%{noreply, NewState};
-  {stop, normal, ok, NewState};
+  {stop, Reason, NewState};
 
 handle_info(Info, State) ->
   ?BROD_LOG_WARNING("~p [~p] ~p got unexpected info: ~p",
